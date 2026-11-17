@@ -99,26 +99,45 @@ REG
 # Self-sign the prefix's Windows DLLs with a certificate named "Microsoft
 # Windows", so LINE's Authenticode check (which rejects Wine's unsigned DLLs
 # with NO_SIGNATURE) passes. The key never leaves this prefix.
+# Set of DLL basenames that Wine itself ships. We only sign these, so a DLL an
+# installer dropped into the prefix (a third party's own file) never receives
+# our "Microsoft Windows" signature.
+wine_builtin_dlls() {
+    local winedir; winedir="$(dirname "$(command -v "$WFT_WINE")")/.."
+    find "$winedir/lib" -name '*.dll' -printf '%f\n' 2>/dev/null \
+        | tr '[:upper:]' '[:lower:]' | sort -u
+}
+
 sign_dlls() {
     local pfx="$1"
     need "$WFT_OSSLSIGNCODE"
     local cdir="$pfx/.wft"
-    mkdir -p "$cdir"
+    ( umask 077; mkdir -p "$cdir" )
     local key="$cdir/ms.key" crt="$cdir/ms.crt"
     if [ ! -f "$crt" ]; then
-        msg "generating a local code-signing certificate (CN=Microsoft Windows)"
-        openssl req -x509 -newkey rsa:2048 -keyout "$key" -out "$crt" \
+        # LINE accepts only DLLs signed under a Microsoft signer name, so the
+        # certificate must carry one. This self-signed cert never leaves this
+        # prefix and is not trusted by anything outside it; see docs/LINE.md.
+        msg "generating a local, prefix-only code-signing certificate"
+        ( umask 077
+          openssl req -x509 -newkey rsa:2048 -keyout "$key" -out "$crt" \
             -days 3650 -nodes -sha256 \
             -subj "/C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows" \
-            >/dev/null 2>&1
+            >/dev/null 2>&1 )
         chmod 600 "$key"
     fi
-    local n=0 ok=0
-    msg "signing prefix DLLs (one-time, ~30s); re-run 'wft sign' after a Wine upgrade"
+    local allow; allow="$(wine_builtin_dlls)"
+    local n=0 ok=0 skipped=0
+    msg "signing Wine's builtin DLLs (one-time, ~30s); re-run 'wft sign' after a Wine upgrade"
     while IFS= read -r -d '' dll; do
+        local base; base="$(basename "$dll" | tr '[:upper:]' '[:lower:]')"
+        # Only sign DLLs that Wine itself ships; leave third-party files alone.
+        if ! printf '%s\n' "$allow" | grep -qxF "$base"; then skipped=$((skipped + 1)); continue; fi
         n=$((n + 1))
-        # Skip anything already carrying a signature.
-        if "$WFT_OSSLSIGNCODE" verify "$dll" >/dev/null 2>&1; then ok=$((ok + 1)); continue; fi
+        # Skip anything we already signed (our cert's CN appears in the output).
+        # Capture first: osslsigncode exits non-zero (no trust chain) under pipefail.
+        local vout; vout="$("$WFT_OSSLSIGNCODE" verify -ignore-timestamp "$dll" 2>/dev/null || true)"
+        if printf '%s\n' "$vout" | grep -q "CN=Microsoft Windows"; then ok=$((ok + 1)); continue; fi
         local tmp="$dll.wftsig"
         if "$WFT_OSSLSIGNCODE" sign -certs "$crt" -key "$key" -h sha256 \
                 -n "Microsoft Windows" -in "$dll" -out "$tmp" >/dev/null 2>&1; then
@@ -128,7 +147,7 @@ sign_dlls() {
         fi
     done < <(find "$pfx/drive_c/windows/system32" "$pfx/drive_c/windows/syswow64" \
                 -maxdepth 1 -type f -iname '*.dll' -print0 2>/dev/null)
-    msg "signed/verified $ok of $n DLLs"
+    msg "signed/verified $ok of $n Wine DLLs (left $skipped non-Wine DLLs untouched)"
     [ "$ok" -gt 0 ] || die "signing failed for every DLL; is osslsigncode working?"
 }
 
@@ -142,15 +161,33 @@ cmd_prefix() {
 
 cmd_sign() { local pfx; pfx="$(prefix_path "$1")"; sign_dlls "$pfx"; }
 
+# Confirm a downloaded installer is signed by LINE's publisher before running
+# it. Avoids running a tampered or man-in-the-middled binary.
+: "${WFT_LINE_SIGNER:=LY Corporation}"
+verify_line_installer() {
+    local inst="$1" out
+    # osslsigncode exits non-zero because this self-contained check has no CA to
+    # build a trust chain; we only need the embedded signer name, so capture the
+    # output (|| true keeps pipefail happy) and look for the publisher there.
+    out="$("$WFT_OSSLSIGNCODE" verify -ignore-timestamp "$inst" 2>/dev/null || true)"
+    if ! printf '%s\n' "$out" | grep -q "O=$WFT_LINE_SIGNER"; then
+        die "installer signature check failed (expected signer '$WFT_LINE_SIGNER'); refusing to run $inst"
+    fi
+    msg "installer verified: signed by $WFT_LINE_SIGNER"
+}
+
 cmd_line() {
     local pfx; pfx="$(prefix_path "$1")"
     need curl
+    need "$WFT_OSSLSIGNCODE"
     cmd_prefix "$pfx" >/dev/null
     local inst="$pfx/.wft/LineInst.exe"
     if [ ! -s "$inst" ]; then
         msg "downloading the official LINE installer"
-        curl -fsSL "$WFT_LINE_URL" -o "$inst"
+        curl -fsSL --proto '=https' --tlsv1.2 "$WFT_LINE_URL" -o "$inst"
     fi
+    # Verify every time, including a cached or pre-placed file.
+    verify_line_installer "$inst"
     msg "running the LINE installer (silent)"
     wft_env "$pfx" "$WFT_WINE" "$inst" /S || warn "installer returned non-zero; continuing"
     WINEPREFIX="$pfx" "$WFT_WINESERVER" -w

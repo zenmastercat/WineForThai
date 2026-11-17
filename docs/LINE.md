@@ -21,11 +21,27 @@ here by running LINE 26.6.0.4004 under Wine (the dialog appeared for
 `crypt32.dll`). The matching Wine bug (54836, wintrust) is still open.
 
 **Fix (`wft sign`):** generate a self-signed certificate whose subject is
-`CN=Microsoft Windows, O=Microsoft Corporation` and sign every DLL in the
-prefix's `system32` and `syswow64` with `osslsigncode`. LINE's check then
-passes. The private key is generated locally and never leaves the prefix
-(`<prefix>/.wft/ms.key`). **Re-run `wft sign` after every Wine upgrade**, because
-`wineboot` restores the unsigned built-in DLLs.
+`CN=Microsoft Windows, O=Microsoft Corporation` and sign Wine's own builtin
+DLLs in the prefix's `system32` and `syswow64` with `osslsigncode`. LINE's check
+then passes. **Re-run `wft sign` after every Wine upgrade**, because `wineboot`
+restores the unsigned builtin DLLs.
+
+Security properties of this workaround:
+
+- **Prefix-only.** The key and certificate live in `<prefix>/.wft/`
+  (`ms.key`, mode 600, created under `umask 077`). Nothing outside that Wine
+  prefix trusts this certificate — it is **not** added to any system or browser
+  trust store. It only makes *that prefix's* LINE accept *that prefix's* DLLs.
+- **The name must be Microsoft's.** LINE checks for a Microsoft signer name, so
+  the certificate carries one. This is cosmetic impersonation inside a sandbox,
+  not a trusted Microsoft certificate; it cannot vouch for anything to Windows,
+  a browser, or another machine.
+- **Only Wine's own DLLs are signed.** `wft` signs only DLL filenames that the
+  Wine build itself ships, so a file some other installer drops into the prefix
+  never receives this signature.
+- **The installer is checked first.** Before running the downloaded LINE
+  installer, `wft` confirms it is signed by `LY Corporation` (LINE's publisher)
+  and refuses to run it otherwise. The download is pinned to HTTPS.
 
 Three approaches were reported working; `wft` uses self-signing because it needs
 no Microsoft binaries and no pinned old build:
