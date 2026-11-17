@@ -1,0 +1,82 @@
+WineForThai change notice (LGPL-2.1-or-later)
+=============================================
+File changed: dlls/win32u/font.c
+Date:         2026-11-18
+Author:       WineForThai project (AI-assisted)
+Summary:      Add Thai fonts to the default Tahoma / Microsoft Sans Serif /
+              Lucida Sans Unicode SystemLink lists so GDI apps (e.g. LINE)
+              render Thai text when a Thai font is present in the prefix.
+Base:         Wine staging 11.18 (see AUTHORS.wine, COPYING.LIB).
+Upstream:     NOT submitted. The Wine project does not accept AI-generated
+              patches, so this change is carried only in WineForThai.
+
+--- 8< --- patch below --- 8< ---
+diff --git a/dlls/win32u/font.c b/dlls/win32u/font.c
+index 97936e9..079a2a3 100644
+--- a/dlls/win32u/font.c
++++ b/dlls/win32u/font.c
+@@ -1618,6 +1618,21 @@ static const struct font_links_defaults_list
+     }
+ };
+ 
++/* Thai: Windows Tahoma, Microsoft Sans Serif and Lucida Sans Unicode
++ * fall back to Thai glyphs, but the Wine replacements have none.
++ * Link the Windows Thai UI font first, then common free Thai fonts. */
++#define SYSTEM_LINK_THAI \
++    "LEELAWUI.TTF,Leelawadee UI\0" \
++    "LEELAWAD.TTF,Leelawadee\0" \
++    "NotoSansThaiLooped-Regular.ttf,Noto Sans Thai Looped\0" \
++    "NotoSansThaiLooped.ttf,Noto Sans Thai Looped\0" \
++    "NotoSansThai-Regular.ttf,Noto Sans Thai\0" \
++    "NotoSansThai.ttf,Noto Sans Thai\0" \
++    "Loma.otf,Loma\0" \
++    "Loma.ttf,Loma\0" \
++    "Garuda.otf,Garuda\0" \
++    "Garuda.ttf,Garuda\0"
++
+ static const char system_link_tahoma_sc[] =
+     "SIMSUN.TTC,SimSun\0"
+     "MINGLIU.TTC,PMingLiu\0"
+@@ -1627,7 +1642,8 @@ static const char system_link_tahoma_sc[] =
+     "MSJH.TTC,Microsoft JhengHei UI\0"
+     "YUGOTHM.TTC,Yu Gothic UI\0"
+     "MALGUN.TTF,Malgun Gothic\0"
+-    "SEGUISYM.TTF,Segoe UI Symbol\0";
++    "SEGUISYM.TTF,Segoe UI Symbol\0"
++    SYSTEM_LINK_THAI;
+ 
+ static const char system_link_tahoma_tc[] =
+     "MINGLIU.TTC,PMingLiu\0"
+@@ -1638,7 +1654,8 @@ static const char system_link_tahoma_tc[] =
+     "MSYH.TTC,Microsoft YaHei UI\0"
+     "YUGOTHM.TTC,Yu Gothic UI\0"
+     "MALGUN.TTF,Malgun Gothic\0"
+-    "SEGUISYM.TTF,Segoe UI Symbol\0";
++    "SEGUISYM.TTF,Segoe UI Symbol\0"
++    SYSTEM_LINK_THAI;
+ 
+ static const char system_link_tahoma_jp[] =
+     "MSGOTHIC.TTC,MS UI Gothic\0"
+@@ -1649,7 +1666,8 @@ static const char system_link_tahoma_jp[] =
+     "MSJH.TTC,Microsoft JhengHei UI\0"
+     "MSYH.TTC,Microsoft YaHei UI\0"
+     "MALGUN.TTF,Malgun Gothic\0"
+-    "SEGUISYM.TTF,Segoe UI Symbol\0";
++    "SEGUISYM.TTF,Segoe UI Symbol\0"
++    SYSTEM_LINK_THAI;
+ 
+ static const char system_link_tahoma_kr[] =
+     "GULIM.TTC,Gulim\0"
+@@ -1660,9 +1678,11 @@ static const char system_link_tahoma_kr[] =
+     "YUGOTHM.TTC,Yu Gothic UI\0"
+     "MSJH.TTC,Microsoft JhengHei UI\0"
+     "MSYH.TTC,Microsoft YaHei UI\0"
+-    "SEGUISYM.TTF,Segoe UI Symbol\0";
++    "SEGUISYM.TTF,Segoe UI Symbol\0"
++    SYSTEM_LINK_THAI;
+ 
+ static const char system_link_tahoma_non_cjk[] =
++    SYSTEM_LINK_THAI
+     "MSGOTHIC.TTC,MS UI Gothic\0"
+     "MINGLIU.TTC,PMingLiU\0"
+     "SIMSUN.TTC,SimSun\0"
