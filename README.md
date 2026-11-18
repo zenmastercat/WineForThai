@@ -30,8 +30,12 @@ nix run github:zenmastercat/WineForThai -- --help
 # Install and set up LINE in a dedicated prefix:
 nix run github:zenmastercat/WineForThai -- line ~/.line
 nix run github:zenmastercat/WineForThai -- run  ~/.line \
-    ~/.line/drive_c/users/$USER/AppData/Local/LINE/bin/*/LINE.exe
+    ~/.line/drive_c/users/$USER/AppData/Local/LINE/bin/LineLauncher.exe
 ```
+
+`wft line` prints this exact command when it finishes. Use **LineLauncher.exe**
+(not a versioned `LINE.exe` path) — LINE's self-updater moves the app into
+`bin/current`, so the launcher is the one path that keeps working after updates.
 
 Or add the NixOS module:
 

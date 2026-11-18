@@ -193,11 +193,15 @@ cmd_line() {
     WINEPREFIX="$pfx" "$WFT_WINESERVER" -w
     sign_dlls "$pfx"
     ensure_line_data "$pfx"
-    local exe
-    exe="$(find "$pfx/drive_c" -name LINE.exe 2>/dev/null | sort | tail -1 || true)"
-    [ -n "$exe" ] || { warn "LINE.exe not found; install may have failed"; return; }
-    msg "LINE installed: $exe"
-    msg "start it with:  wft run \"$pfx\" \"$exe\""
+    # Point users at LineLauncher.exe: it is a stable path that always finds the
+    # current LINE version, which LINE's self-updater moves under bin/current.
+    local launcher
+    launcher="$(find "$pfx/drive_c" -name LineLauncher.exe 2>/dev/null | sort | head -1 || true)"
+    if [ -z "$launcher" ]; then
+        warn "LineLauncher.exe not found; install may have failed"; return
+    fi
+    msg "LINE installed. Start it with:"
+    msg "  wft run \"$pfx\" \"$launcher\""
 }
 
 # LINE's launcher writes into AppData\Local\LINE\Data but never creates that
