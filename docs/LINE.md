@@ -61,6 +61,7 @@ no Microsoft binaries and no pinned old build:
 | **Media viewer** | `LineMediaPlayer.exe` exits on an unimplemented `msvcp140_2` export (bug 56999) | `msvcp140_2=native,builtin` under that program's AppDefaults |
 | **Input / screenshots** | On Wayland, dev Wine drops Enter/Backspace with text-input-v3 (which Mango offers), and LINE's own screenshot is black (bug 60684) | Forces `Graphics=x11` and XIM input style; `wft run` clears inherited `QT_*` variables and unsets `WAYLAND_DISPLAY` |
 | **Window disappears on maximise** | Wine remaps the window when decorations change | `Decorated=N` for `LINE.exe` |
+| **"Some files are corrupted / Could not create files in …LINE\Data"** | LINE's launcher writes into `AppData\Local\LINE\Data` but never creates that folder on a fresh prefix (confirmed by a file trace: `Data\test.tst` fails with `STATUS_OBJECT_PATH_NOT_FOUND`) | `wft` creates the `Data` folder after install, and `wft run` ensures it exists |
 
 ## Locale
 

@@ -192,11 +192,24 @@ cmd_line() {
     wft_env "$pfx" "$WFT_WINE" "$inst" /S || warn "installer returned non-zero; continuing"
     WINEPREFIX="$pfx" "$WFT_WINESERVER" -w
     sign_dlls "$pfx"
+    ensure_line_data "$pfx"
     local exe
     exe="$(find "$pfx/drive_c" -name LINE.exe 2>/dev/null | sort | tail -1 || true)"
     [ -n "$exe" ] || { warn "LINE.exe not found; install may have failed"; return; }
     msg "LINE installed: $exe"
     msg "start it with:  wft run \"$pfx\" \"$exe\""
+}
+
+# LINE's launcher writes into AppData\Local\LINE\Data but never creates that
+# folder, so on a fresh prefix it reports "some files are corrupted or missing /
+# Could not create files in ...LINE\Data". Create it so LINE starts.
+ensure_line_data() {
+    local pfx="$1" d made=0
+    while IFS= read -r d; do
+        mkdir -p "$d/Data" && made=1
+    done < <(find "$pfx/drive_c/users" -type d -ipath '*/AppData/Local/LINE' 2>/dev/null)
+    [ "$made" = 1 ] && msg "created LINE's Data folder (fixes the 'files corrupted' launch error)"
+    return 0
 }
 
 # The environment LINE needs: X11 (not Wayland), XIM input, no inherited Qt
@@ -234,6 +247,7 @@ FC
 cmd_run() {
     local pfx; pfx="$(prefix_path "$1")"; shift
     [ "$#" -ge 1 ] || die "usage: wft run <dir> <program.exe> [args...]"
+    ensure_line_data "$pfx" >/dev/null   # harmless if this prefix has no LINE
     wft_env "$pfx" "$WFT_WINE" "$@"
 }
 

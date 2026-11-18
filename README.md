@@ -58,10 +58,12 @@ fixes, which `wft` applies for you (see `docs/LINE.md` for detail and sources):
 | Dropped keys / black screenshots on Wayland | Forces the X11 driver with XIM input |
 | Window vanishes when maximised | `Decorated=N` for `LINE.exe` |
 
-**Tested here:** installs cleanly (LINE 26.6.0.4004 and legacy 9.1.3), signed by
-LY Corporation; the patched Wine builds and carries the Thai font links. **Not
-tested here:** a full login (needs a QR scan) and Thai typing — these are
-reported working by others but unconfirmed on this exact setup.
+**Tested here:** `wft line` installs LINE 26.6.0.4004 (verified signed by LY
+Corporation), signs Wine's DLLs, and LINE **reaches its login screen** — the
+email/password fields and the QR code for "Log in with my smartphone" all
+render. The patched Wine builds and carries the Thai font links. **Not tested
+here:** completing a login (needs you to scan the QR with your phone) and Thai
+typing — reported working by others, unconfirmed on this exact setup.
 
 ## SOLIDWORKS: experimental
 
